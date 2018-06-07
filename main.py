@@ -21,8 +21,7 @@ def main(inpfn, use_new_file=False):
     trailer = PdfReader(inpfn)
     fitz_pdf = PDFTextSearch(inpfn)
     for i, page in enumerate(trailer.pages):
-        print('==========')
-        print(i)
+        print('==  Page {:>3}  =='.format(i))
 
         while annotations and i == annotations[0].page:
             text = annotations[0].text
@@ -48,13 +47,17 @@ def backup_ori(inpfn):
     from shutil import copyfile
     backup_file = '{}.bak'.format(inpfn)
     if os.path.isfile(backup_file):
-        print('INFO: Skipping backup pdf as it already exists. Using bak as input.')
+        print('INFO: Found backup pdf. Using the bak as input instead.')
         # copyfile(backup_file, inpfn)
     else:
         copyfile(inpfn, backup_file)
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
+    if len(argv) < 1:
+        print("You need to supply a pdf filename for highlight annotations conversion.")
+        print("Optionally use --use-new-file or -n to save result in a separate file.")
+        sys.exit(1)
     use_new_file = '--use-new-file' in argv or '-n' in  argv
     inpfn = argv[0]
     inpfn = os.path.abspath(inpfn)
