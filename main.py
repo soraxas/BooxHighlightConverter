@@ -48,7 +48,7 @@ def backup_ori(inpfn):
     backup_file = '{}.bak'.format(inpfn)
     if os.path.isfile(backup_file):
         print('INFO: Found backup pdf. Using the bak as input instead.')
-        # copyfile(backup_file, inpfn)
+        copyfile(backup_file, inpfn)
     else:
         copyfile(inpfn, backup_file)
 
