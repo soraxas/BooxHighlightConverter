@@ -1,7 +1,7 @@
 #!/bin/bash
-
 # go to script location
-cd "$(dirname "$0")" || exit $?
+selfpath="$(dirname $(readlink -f "$0"))"
+cd "$selfpath" || exit $?
 # activate pyenv virtualenv
 eval "$(pyenv init -)" || exit $?
 pyenv activate --quiet pdf || exit $?
