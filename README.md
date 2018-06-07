@@ -1,4 +1,4 @@
-# Boox Annotations Converter
+# Boox Highlights Converter
 
 ### Convert highlight annotations produced by Boox neoreader into standard PDF format
 
