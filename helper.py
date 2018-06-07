@@ -123,7 +123,7 @@ class PDFTextSearch:
             return ' '.join(ws[:idx]), ' '.join(ws[idx+1:])
         def addRemainingWords(line):
             # add all remaining words into list
-            while len(line) > TOKENS_MIN_LENGTH:
+            while len(line.split(' ')) > TOKENS_MIN_LENGTH:
                 ws, line = getToken(line)
                 try:
                     add(ws)
@@ -138,8 +138,7 @@ class PDFTextSearch:
                     raise FallbackFailedException("Escaped character too close to beginning tokens")
                 ws, line = getToken(line)
                 add(ws)
-                while len(line) > 2:
-                    addRemainingWords(line)
+                addRemainingWords(line)
             else:
                 addRemainingWords(line)
         merged = self.mergeTokens(tokens)

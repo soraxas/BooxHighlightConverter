@@ -9,11 +9,14 @@ from booxAnnoReader import readAnnotations
 AUTHOR = 'Tin Yiu Lai'
 
 
-def main(inpfn):
+def main(inpfn, use_new_file=False):
     annotations = readAnnotations(inpfn)
     annotations = sorted(annotations, key=lambda x: x.page)
-
-    outfn = 'result.' + os.path.basename(inpfn)
+    if use_new_file:
+        outfn = 'result.' + os.path.basename(inpfn)
+    else:
+        outfn = os.path.basename(inpfn)
+    outfn = os.path.abspath(outfn)
     # wmark = PageMerge().add(PdfReader(wmarkfn).pages[0])[0]
     trailer = PdfReader(inpfn)
     fitz_pdf = PDFTextSearch(inpfn)
@@ -27,7 +30,7 @@ def main(inpfn):
                 points = fitz_pdf.getQuadpoints(i, text)
             except TextNotFoundException as e:
                 # use fall back to try again
-                print("> Using fall-back mechanism at page '{}'. Might not be fully correct".format(i))
+                print("> Using fall-back mechanism at page '{}'. Might not be fully correct".format(i+1))
                 points = fitz_pdf.fallbackGetQuadpoints(i, text)
             highlight = createHighlight(points,
                                         author=AUTHOR,
@@ -41,23 +44,32 @@ def main(inpfn):
     PdfWriter(outfn, trailer=trailer).write()
     return outfn
 
+def backup_ori(inpfn):
+    from shutil import copyfile
+    backup_file = '{}.bak'.format(inpfn)
+    if os.path.isfile(backup_file):
+        print('INFO: Skipping backup pdf as it already exists. Using bak as input.')
+        # copyfile(backup_file, inpfn)
+    else:
+        copyfile(inpfn, backup_file)
+
 if __name__ == '__main__':
     argv = sys.argv[1:]
-    underneath = '-u' in argv
-    if underneath:
-        del argv[argv.index('-u')]
+    use_new_file = '--use-new-file' in argv or '-n' in  argv
     inpfn = argv[0]
-    outfn = main(inpfn)
-
-    abs_outfn = os.path.abspath(outfn)
+    inpfn = os.path.abspath(inpfn)
+    # backup original file
+    backup_ori(inpfn)
+    outfn = main(inpfn, use_new_file)
     # open result file with foxitreader (to re-save the format as it helps to fixes stuff)
     # need abs path becuase using relative path does not seems to triggle saving when exiting foxitreader
-    last_modified_time = os.path.getmtime(abs_outfn)
+    last_modified_time = os.path.getmtime(outfn)
     import subprocess
     with open(os.devnull, 'w') as FNULL:
-        subprocess.call(['foxitreader', abs_outfn], close_fds=True, stdout=FNULL, stderr=subprocess.STDOUT)
+        print('Opeining {}'.format(outfn))
+        subprocess.call(['foxitreader', outfn], close_fds=True, stdout=FNULL, stderr=subprocess.STDOUT)
     # Check if user had saved the file after opening foxitreader
-    if os.path.getmtime(abs_outfn) <= last_modified_time:
+    if os.path.getmtime(outfn) <= last_modified_time:
         print("WARNING! Seems like you did not save the file after opening foxitreader? "
               "Its best to allow it do works for us on fixing internal PDF structures.")
         sys.exit(1)

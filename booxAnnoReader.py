@@ -9,8 +9,11 @@ class Anno:
 
 def readAnnotations(pdf_path):
     # folder that holds the annotations
-    base_name = os.path.splitext(pdf_path)[0]
-    anno_file = open(os.path.join(base_name, base_name + '-annotation.txt'))
+    path_name = os.path.splitext(pdf_path)[0]
+    base_name_with_ext = os.path.basename(pdf_path)
+    base_name = os.path.splitext(base_name_with_ext)[0]
+
+    anno_file = open(os.path.join(path_name, base_name + '-annotation.txt'))
     begining_anno = True
     ended = False
     annotations = []
