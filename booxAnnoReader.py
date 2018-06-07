@@ -18,9 +18,10 @@ def readAnnotations(pdf_path):
         #################
         ##  ~REPLACE~  ##
         #################
+        # this indicate some token that the program cannot recognise (as place holder)
         if "\xef\xbf\xbe" in line:
             line = line.replace("\xef\xbf\xbe", '-\n')
-
+        ###########################
         if begining_anno:
             ### Page line + Comment
             annotations.append(Anno())
@@ -41,7 +42,7 @@ def readAnnotations(pdf_path):
         elif '--------------------' in line:
             ### End of annotation
             if not ended:
-                raise Exception("Did not detect \ x00 indicating end of line?")
+                raise Exception("Did not detect \\x00 indicating end of line?")
             begining_anno = True
             ended = False
             # fix ups the formatting of each components
@@ -58,6 +59,6 @@ def readAnnotations(pdf_path):
             ### Comment
             annotations[-1].comment += line
         else:
-            raise Exception("ERROR?")
+            raise Exception("ERROR: The boox annotations txt file contain unrecognisible line")
 
     return annotations
