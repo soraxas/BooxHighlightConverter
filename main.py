@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import sys
 import os
 
@@ -16,8 +15,9 @@ def main(inpfn, use_new_file=False):
         outfn = 'result.' + os.path.basename(inpfn)
     else:
         outfn = os.path.basename(inpfn)
-    outfn = os.path.abspath(outfn)
-    # wmark = PageMerge().add(PdfReader(wmarkfn).pages[0])[0]
+    path_name = os.path.dirname(inpfn)
+    outfn = os.path.join(path_name, outfn)
+
     trailer = PdfReader(inpfn)
     fitz_pdf = PDFTextSearch(inpfn)
     for i, page in enumerate(trailer.pages):
