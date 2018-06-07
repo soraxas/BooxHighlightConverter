@@ -1,9 +1,8 @@
 #!/bin/bash
-# go to script location
+# get script location
 selfpath="$(dirname $(readlink -f "$0"))"
-cd "$selfpath" || exit $?
 # activate pyenv virtualenv
 eval "$(pyenv init -)" || exit $?
 pyenv activate --quiet pdf || exit $?
 
-python ../main.py "$@"
+python "$selfpath/../main.py" "$@"
