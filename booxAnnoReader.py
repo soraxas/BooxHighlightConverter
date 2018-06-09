@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 
 class Anno:
     def __init__(self):
@@ -12,8 +13,11 @@ def readAnnotations(pdf_path):
     path_name = os.path.splitext(pdf_path)[0]
     base_name_with_ext = os.path.basename(pdf_path)
     base_name = os.path.splitext(base_name_with_ext)[0]
-
-    anno_file = open(os.path.join(path_name, base_name + '-annotation.txt'))
+    annotation_file_name = os.path.join(path_name, base_name + '-annotation.txt')
+    if not os.path.isfile(annotation_file_name):
+        print("WARN: Expected annotation file does not exists.")
+        return None
+    anno_file = open(annotation_file_name)
     begining_anno = True
     ended = False
     annotations = []
