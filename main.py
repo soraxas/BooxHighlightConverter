@@ -66,7 +66,9 @@ def handle_args():
         help="File or directory as input. If the given argument is a directory, \
               all files within will be the action target. The default action \
               (without -c or -r flag) is to perform the annotation conversion \
-              action.",
+              action. (default: current working directory)",
+        nargs='?',
+        default=os.getcwd(),
         metavar="FILE_OR_DIR")
     parser.add_argument(
         "-c",
