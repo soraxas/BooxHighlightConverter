@@ -49,11 +49,20 @@ def createHighlight(points, color = [1,0.92,0.23], author=None, contents=None):
     return newHighlight
 
 
-def addAnnot(page, annot):
+def addAnnot(pdfrw_page, annot):
     """Add annotations to page, create an array if none exists yet"""
-    if page.Annots is None:
-        page.Annots = PdfArray()
-    page.Annots.append(annot)
+    if pdfrw_page.Annots is None:
+        pdfrw_page.Annots = PdfArray()
+    pdfrw_page.Annots.append(annot)
+
+def pdfrw_quadpoint_to_fitz_rect(pts):
+    origin = 0
+    rects = []
+    while origin < len(pts):
+        (x1, y1, x2, y2) = pts[origin+0], pts[origin+5], pts[origin+6], pts[origin+1]
+        rects.append(fitz.Rect(x1, y1, x2, y2))
+        origin += 8
+    return rects
 
 
 class PDFTextSearch:
@@ -111,7 +120,8 @@ class PDFTextSearch:
         def add(w):
             """Helper functino to add w to tokens (and check length before doing so)"""
             if len(w) <= 2:
-                raise PossibleErrorException("VERY SHORT token!")
+                print("WARN: VERY SHORT token: '{}'! Ignoring this token...".format(w))
+                return
             tokens.extend(self.getQuadpoints(page_num, w, hit_max, ignore_short_width, extract=False))
         def getToken(line):
             """Given line, return the splited sentence before and after the first occurance of an escape char"""
@@ -143,6 +153,23 @@ class PDFTextSearch:
                 addRemainingWords(line)
         merged = self.mergeTokens(tokens)
         return self.invertCoordinates(merged, self.page_height(page_num))
+
+    def annot_exists(self, page_num, annot):
+        """Given an annot in pdfrw, determine if it already exists by utilising fitz."""
+        page = self.doc[page_num]
+        pageAnnot = page.firstAnnot
+        # need to change pdfrw's rect coor to fits fitz's coordinate *by inverting)
+        pendingAnnots = [fitz.Rect(x) for x in self.invertCoordinates(pdfrw_quadpoint_to_fitz_rect(annot.QuadPoints), self.page_height(page_num))]
+        # We consider the two given annots are the same if all the sub-parts of the pending annots intersects one of the annot that we are checking
+        # (We cannot simply use contains because the coordinates data are slightly off and hence unreliable)
+        while pageAnnot:
+            # inverted
+            if all(pageAnnot.rect.intersects(a) for a in pendingAnnots):
+                return True
+            # else we continue to check next annot
+            pageAnnot = pageAnnot.next                        # get next annot on page
+
+        return False
 
     def page_height(self, page_num):
         page = self.doc[page_num]

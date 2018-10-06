@@ -7,7 +7,7 @@ from pdfrw import PdfReader, PdfWriter, PdfDict, PdfArray
 from helper import createHighlight, addAnnot, PDFTextSearch, TextNotFoundException
 from booxAnnoReader import readAnnotations
 
-AUTHOR = 'Tin Yiu Lai'
+AUTHOR = 'Tin Lai'
 
 
 def convert(input_file, use_new_file=False, backup_file=True):
@@ -44,8 +44,12 @@ def convert(input_file, use_new_file=False, backup_file=True):
                                             author=AUTHOR,
                                             contents=annotations[0].comment,
                                             color=[1, 1, 0.4])
-                addAnnot(page, annot=highlight)
-                count += 1
+                # check to see if this annotation exists already
+                if fitz_pdf.annot_exists(page_num=i, annot=highlight):
+                    print("INFO: This annot already exists, skipping...")
+                else:
+                    addAnnot(page, annot=highlight)
+                    count += 1
                 annotations.pop(0)
             print(">> Successfully converted: {}".format(count))
     print('==========')
@@ -126,7 +130,7 @@ def convert_wrapper(inpfn, args):
     last_modified_time = os.path.getmtime(outfn)
     import subprocess
     with open(os.devnull, 'w') as FNULL:
-        print('Opeining {}'.format(outfn))
+        print('Opening {}'.format(outfn))
         subprocess.call(['foxitreader', outfn], close_fds=True, stdout=FNULL, stderr=subprocess.STDOUT)
     # Check if user had saved the file after opening foxitreader
     if os.path.getmtime(outfn) <= last_modified_time:
