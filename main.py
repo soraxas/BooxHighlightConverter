@@ -149,6 +149,8 @@ def main():
     # for clean up or restore
     if os.path.isdir(inpfn):
         for file in os.listdir(inpfn):
+            # prefix the file name with its directory
+            file = os.path.join(inpfn, file)
             if file.endswith(".bak"):
                 if args['restore']:
                         restore(file, end_with_bak=True)
