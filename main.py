@@ -77,6 +77,13 @@ def handle_args():
         default=False,
         help="Cleans up the bak files from current directory.")
     parser.add_argument(
+        "--clean-entire-dir",
+        action='store_true',
+        default=False,
+        help="Cleans up the enitre directory so that any annotation directory or "
+             "bak files will be deleted; hence, implies --clean."
+        )
+    parser.add_argument(
         "-r",
         "--restore",
         action='store_true',
@@ -95,6 +102,8 @@ def handle_args():
         help="Do not create a bak file (dangeous if using original file).")
 
     args = vars(parser.parse_args())
+    if args['clean_entire_dir']:
+        args['clean'] = True
     return args
 
 def backup(inpfn):
@@ -142,7 +151,7 @@ def convert_wrapper(inpfn, args):
 def main():
     args = handle_args()
     if args['clean'] == args['restore'] and args['clean'] == True:
-        print("The flag -c and -r are mutually exclusive, annot be both set!")
+        print("The flag -c and -r are mutually exclusive, cannot be both set!")
         sys.exit(1)
     inpfn = os.path.abspath(args['file'])
 
@@ -153,8 +162,13 @@ def main():
             file = os.path.join(inpfn, file)
             if file.endswith(".bak"):
                 if args['restore']:
-                        restore(file, end_with_bak=True)
+                    restore(file, end_with_bak=True)
             elif file.endswith(".pdf"):
+                if args['clean_entire_dir']:
+                    annot_path = os.path.splitext(file)[0]
+                    if os.path.isdir(annot_path):
+                        print("INFO: Deleting annot dir {}".format(annot_path))
+                        shutil.rmtree(annot_path)
                 if args['clean']:
                     clean_up(file)
                 elif not args['clean'] and not args['restore']:
@@ -169,6 +183,7 @@ def main():
         else:
             # Main functionality
             convert_wrapper(inpfn, args)
+
 
 
 if __name__ == '__main__':
