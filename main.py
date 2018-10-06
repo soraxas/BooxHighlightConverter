@@ -13,7 +13,7 @@ AUTHOR = 'Tin Lai'
 def convert(input_file, use_new_file=False, backup_file=True):
     annotations = readAnnotations(input_file)
     if annotations is None:
-        print("Skipping '{}'...".format(input_file))
+        print("  Skipping '{}'...".format(input_file))
         return None
     if backup_file:
         backup(input_file)
@@ -38,7 +38,7 @@ def convert(input_file, use_new_file=False, backup_file=True):
                     points = fitz_pdf.getQuadpoints(i, text)
                 except TextNotFoundException:
                     # use fall back to try again
-                    print("INFO: Using fall-back mechanism. Might contains mistaken hls.")
+                    print("  INFO: Using fall-back mechanism. Might contains mistaken hls.")
                     points = fitz_pdf.fallbackGetQuadpoints(i, text)
                 highlight = createHighlight(points,
                                             author=AUTHOR,

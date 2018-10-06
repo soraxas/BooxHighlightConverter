@@ -120,7 +120,7 @@ class PDFTextSearch:
         def add(w):
             """Helper functino to add w to tokens (and check length before doing so)"""
             if len(w) <= 2:
-                print("WARN: VERY SHORT token: '{}'! Ignoring this token...".format(w))
+                print("  WARN: VERY SHORT token: '{}'! Ignoring this token...".format(w))
                 return
             tokens.extend(self.getQuadpoints(page_num, w, hit_max, ignore_short_width, extract=False))
         def getToken(line):
@@ -128,7 +128,7 @@ class PDFTextSearch:
             idx, skiped_word = self.unicodeIdx(line)
             if idx < 0:
                 return line, ''
-            print("INFO: Ignoring unicode '{}' from: '{}'".format(skiped_word, line))
+            print("  INFO: Ignoring unicode '{}' from: '{}'".format(skiped_word, line))
             ws = line.split(' ')
             return ' '.join(ws[:idx]), ' '.join(ws[idx+1:])
         def addRemainingWords(line):
@@ -138,7 +138,7 @@ class PDFTextSearch:
                 try:
                     add(ws)
                 except TextNotFoundException as e:
-                    print("WARN: Skipping '{}' as it was not found".format(ws))
+                    print("  WARN: Skipping '{}' as it was not found".format(ws))
 
         for i, line in enumerate(text.split('\n')):
             line = line.rstrip()
@@ -239,7 +239,6 @@ class PDFTextSearch:
                 double_column[0].append(annot_tokens[i])
             else:
                 double_column[1].append(annot_tokens[i])
-        print(is_double_column)
         if not is_double_column:
             return mergeColumnTokens(annot_tokens)
 
