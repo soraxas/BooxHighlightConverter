@@ -176,11 +176,11 @@ class PDFTextSearch:
         return page.bound().y1
 
     @staticmethod
-    def mergeTokens(tokens):
+    def mergeTokens(annot_tokens):
         """Try to merge the broken tokens together, with full line width"""
-        if len(tokens) < 2:
+        if len(annot_tokens) < 2:
             # no need to merge len = 1
-            return tokens
+            return annot_tokens
         def sameline(r1, r2):
             """Determine if r1 and r2 are on the same line"""
             tol = SAME_LINE_TOL
@@ -188,42 +188,65 @@ class PDFTextSearch:
                 abs(r1.y1 - r2.y1) < tol):
                 return True
             return False
-        # loop through to find left most & right most boarder
-        leftMost = float('inf')
-        rightMost = 0
-        for t in tokens:
-            leftMost = min(leftMost, t.x0, t.x1)
-            rightMost = max(rightMost, t.x0, t.x1)
-
-        lines = []
-        for i, t in enumerate(tokens):
-            if i == 0:
-                lines.append([t])  # first line no need to check previous line
-            else:
-                # determine if it's same line as before
-                if sameline(lines[-1][0], t):
-                    # append to previous line
-                    lines[-1].append(t)
+        def mergeColumnTokens(tokens):
+            # loop through to find left most & right most boarder
+            leftMost = float('inf')
+            rightMost = 0
+            for t in tokens:
+                leftMost = min(leftMost, t.x0, t.x1)
+                rightMost = max(rightMost, t.x0, t.x1)
+            lines = []
+            for i, t in enumerate(tokens):
+                if i == 0:
+                    lines.append([t])  # first line no need to check previous line
                 else:
-                    # create a new line
-                    lines.append([t])
-        ###########################
-        ## NOW WE DO THE MERGING ##
-        ###########################
-        new_lines = []
-        for i, line in enumerate(lines):
-            bot = float('inf')
-            top = 0
-            for l in line:
-                bot = min(bot, l.y0)
-                top = max(top, l.y1)
-            if i == 0:
-                new_lines.append(fitz.Rect(line[0].x0, bot, rightMost, top))
-            elif i == len(lines) - 1:
-                new_lines.append(fitz.Rect(leftMost, bot, line[-1].x1, top))
+                    # determine if it's same line as before
+                    if sameline(lines[-1][0], t):
+                        # append to previous line
+                        lines[-1].append(t)
+                    else:
+                        # create a new line
+                        lines.append([t])
+            ###########################
+            ## NOW WE DO THE MERGING ##
+            ###########################
+            new_lines = []
+            for i, line in enumerate(lines):
+                bot = float('inf')
+                top = 0
+                for l in line:
+                    bot = min(bot, l.y0)
+                    top = max(top, l.y1)
+                if i == 0:
+                    new_lines.append(fitz.Rect(line[0].x0, bot, rightMost, top))
+                elif i == len(lines) - 1:
+                    new_lines.append(fitz.Rect(leftMost, bot, line[-1].x1, top))
+                else:
+                    new_lines.append(fitz.Rect(leftMost, bot, rightMost, top))
+            return new_lines
+
+        # detect if the highlights spans a double column
+        is_double_column = False
+        double_column = [[], []]
+        double_column[0].append(annot_tokens[0])
+
+        # filter the tokens that belong to different columns, and perform merge for each column
+        for i in range(1, len(annot_tokens)):
+            if not sameline(annot_tokens[i-1], annot_tokens[i]):
+                if annot_tokens[i-1].y0 > annot_tokens[i].y0:
+                    is_double_column = True
+            if not is_double_column:
+                double_column[0].append(annot_tokens[i])
             else:
-                new_lines.append(fitz.Rect(leftMost, bot, rightMost, top))
-        return new_lines
+                double_column[1].append(annot_tokens[i])
+        print(is_double_column)
+        if not is_double_column:
+            return mergeColumnTokens(annot_tokens)
+
+        firstcol_merged_tokens = mergeColumnTokens(double_column[0])
+        secondcol_merged_tokens = mergeColumnTokens(double_column[1])
+        firstcol_merged_tokens.extend(secondcol_merged_tokens)
+        return firstcol_merged_tokens
 
     @staticmethod
     def invertCoordinates(rects, page_height):
