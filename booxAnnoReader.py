@@ -1,6 +1,9 @@
 import os
 import re
 import sys
+import logging
+
+_LOGGER = logging.getLogger()
 
 class Anno:
     def __init__(self):
@@ -15,7 +18,7 @@ def readAnnotations(pdf_path):
     base_name = os.path.splitext(base_name_with_ext)[0]
     annotation_file_name = os.path.join(path_name, base_name + '-annotation.txt')
     if not os.path.isfile(annotation_file_name):
-        print("WARN: Expected annotation file does not exists.")
+        _LOGGER.debug("Expected annotation file does not exists.")
         return None
     anno_file = open(annotation_file_name)
     begining_anno = True

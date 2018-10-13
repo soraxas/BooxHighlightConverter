@@ -2,18 +2,19 @@ import sys
 import os
 import shutil
 import argparse
+import logging
 
 from pdfrw import PdfReader, PdfWriter, PdfDict, PdfArray
-from helper import createHighlight, addAnnot, PDFTextSearch, TextNotFoundException
+from helper import createHighlight, addAnnot, PDFTextSearch, TextNotFoundException, MultipleInstancesException
 from booxAnnoReader import readAnnotations
 
+_LOGGER = logging.getLogger()
 AUTHOR = 'Tin Lai'
-
 
 def convert(input_file, use_new_file=False, backup_file=True):
     annotations = readAnnotations(input_file)
     if annotations is None:
-        print("  Skipping '{}'...".format(input_file))
+        _LOGGER.info("Skipping...")
         return None
     if backup_file:
         backup(input_file)
@@ -30,29 +31,33 @@ def convert(input_file, use_new_file=False, backup_file=True):
     for i, page in enumerate(trailer.pages):
 
         if annotations and i == annotations[0].page:
-            print('=== Page {} ==='.format(i+1))
+            page_num = i+1
             count = 0
             while annotations and i == annotations[0].page:
-                text = annotations[0].text
+                _annot = annotations.pop(0)
+                text = _annot.text
                 try:
                     points = fitz_pdf.getQuadpoints(i, text)
                 except TextNotFoundException:
                     # use fall back to try again
-                    print("  INFO: Using fall-back mechanism. Might contains mistaken hls.")
+                    _LOGGER.debug("Page {}: Using fall-back mechanism. Might contains mistaken hls.".format(page_num))
                     points = fitz_pdf.fallbackGetQuadpoints(i, text)
+                except MultipleInstancesException:
+                    _LOGGER.error("Page {}: The following text found multiple instances,\n\n"
+                                  "  --> \"{}\" <--  \n\n"
+                                  "(Token too short?), please re-highligh it manually.".format(page_num, text))
+                    continue
                 highlight = createHighlight(points,
                                             author=AUTHOR,
-                                            contents=annotations[0].comment,
+                                            contents=_annot.comment,
                                             color=[1, 1, 0.4])
                 # check to see if this annotation exists already
                 if fitz_pdf.annot_exists(page_num=i, annot=highlight):
-                    print("INFO: This annot already exists, skipping...")
+                    _LOGGER.debug("Page {}: This annot already exists, skipping...".format(page_num))
                 else:
                     addAnnot(page, annot=highlight)
                     count += 1
-                annotations.pop(0)
-            print(">> Successfully converted: {}".format(count))
-    print('==========')
+            print(">> Page {} successfully converted: {}".format(page_num, count))
 
     PdfWriter(output, trailer=trailer).write()
     return output
@@ -100,16 +105,30 @@ def handle_args():
         action='store_true',
         default=False,
         help="Do not create a bak file (dangeous if using original file).")
+    parser.add_argument(
+        '-v',
+        "--verbose",
+        action='store_true',
+        default=False,
+        help="Be verbose in the status of conversion progress.")
 
     args = vars(parser.parse_args())
     if args['clean_entire_dir']:
         args['clean'] = True
+    if args['verbose']:
+        _LOGGER.setLevel(logging.DEBUG)
+    else:
+        _LOGGER.setLevel(logging.ERROR)
+    # logger to stdout
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+    _LOGGER.addHandler(ch)
     return args
 
 def backup(inpfn):
     backup_file = '{}.bak'.format(inpfn)
     if os.path.isfile(backup_file):
-        print('INFO: Found backup pdf. Using the bak as input instead.')
+        _LOGGER.info('Found backup pdf. Using the bak as input instead.')
         shutil.copyfile(backup_file, inpfn)
     else:
         shutil.copyfile(inpfn, backup_file)
@@ -119,7 +138,7 @@ def clean_up(inpfn):
     backup_file = '{}.bak'.format(inpfn)
     if os.path.isfile(backup_file):
         os.remove(backup_file)
-        print("INFO: Deleting {}".format(backup_file))
+        _LOGGER.debug("Deleting {}".format(backup_file))
 
 def restore(inpfn, end_with_bak=False):
     if end_with_bak:
@@ -130,7 +149,7 @@ def restore(inpfn, end_with_bak=False):
     if os.path.isfile(backup_file):
         os.rename(backup_file, inpfn)
     elif not end_with_bak:
-        print("WARN: Bak file for '{}' does not exists.".format(inpfn))
+        _LOGGER.info("Bak file for '{}' does not exists.".format(inpfn))
 
 def convert_wrapper(inpfn, args):
     outfn = convert(input_file=inpfn, use_new_file=args['new_file'], backup_file=(not args['no_backup']))
@@ -141,17 +160,17 @@ def convert_wrapper(inpfn, args):
     last_modified_time = os.path.getmtime(outfn)
     import subprocess
     with open(os.devnull, 'w') as FNULL:
-        print('Opening {}'.format(outfn))
+        _LOGGER.debug('Opening {}'.format(outfn))
         subprocess.call(['foxitreader', outfn], close_fds=True, stdout=FNULL, stderr=subprocess.STDOUT)
     # Check if user had saved the file after opening foxitreader
     if os.path.getmtime(outfn) <= last_modified_time:
-        print("WARNING! Seems like you did not save the file after opening foxitreader? "
+        _LOGGER.warn("Seems like you did not save the file after opening foxitreader? "
               "Its best to allow it do works for us on fixing internal PDF structures.")
 
 def main():
     args = handle_args()
     if args['clean'] == args['restore'] and args['clean'] == True:
-        print("The flag -c and -r are mutually exclusive, cannot be both set!")
+        _LOGGER.error("The flag -c and -r are mutually exclusive, cannot be both set!")
         sys.exit(1)
     inpfn = os.path.abspath(args['file'])
 
@@ -167,14 +186,17 @@ def main():
                 if args['clean_entire_dir']:
                     annot_path = os.path.splitext(file)[0]
                     if os.path.isdir(annot_path):
-                        print("INFO: Deleting annot dir {}".format(annot_path))
+                        _LOGGER.debug("Deleting annot dir {}".format(annot_path))
                         shutil.rmtree(annot_path)
                 if args['clean']:
                     clean_up(file)
                 elif not args['clean'] and not args['restore']:
                     # Main functionality
-                    print('-'*40)
+                    print('='*80)
+                    print(' {}'.format(os.path.basename(file)))
+                    print('-'*80)
                     convert_wrapper(file, args)
+                    print('')
     else:
         if args['clean']:
             clean_up(inpfn)
