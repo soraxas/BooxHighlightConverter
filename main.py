@@ -4,6 +4,7 @@ import os
 import shutil
 import argparse
 import logging
+from colorlog import ColoredFormatter
 
 from pdfrw import PdfReader, PdfWriter, PdfDict, PdfArray
 from helper import (
@@ -43,31 +44,42 @@ def convert(input_file, use_new_file=False, backup_file=True):
             page_num = i+1
             count = 0
             while annotations and i == annotations[0].page:
-                _annot = annotations.pop(0)
-                text = _annot.text
                 try:
-                    points = fitz_pdf.getQuadpoints(i, text)
+                    _annot = annotations.pop(0)
+                    text = _annot.text
+                    try:
+                        points = fitz_pdf.get_quadpoints(i, text)
+                    except TextNotFoundException:
+                        # use fall back to try again
+                        _LOGGER.debug("Page %d: Using fall-back mechanism."
+                                      "Might contains mistaken hls.", page_num)
+                        points = fitz_pdf.fallback_get_quadpoints(i, text)
+                    except MultipleInstancesException:
+                        _LOGGER.error("Page %d: The following text found multiple instances,\n\n"
+                                      "  --> \"%s\" <--  \n\n"
+                                      "(Token too short?), please re-highligh it manually.",
+                                      page_num, text)
+                        continue
+                    highlight = create_highlight(points,
+                                                 author=AUTHOR,
+                                                 contents=_annot.comment,
+                                                 color=(1, 1, 0.4))
+                    # check to see if this annotation exists already
+                    if fitz_pdf.annot_exists(page_num=i, annot=highlight):
+                        _LOGGER.debug("Page %d: This annot already exists, skipping...", page_num)
+                    else:
+                        add_annot(page, annot=highlight)
+                        count += 1
+                        # shorten the line by removing all \r or \n, and also remove double spacing.
+                        hightlighted = text.replace('\r', ' ').replace('\n', ' ').replace('  ', ' ')
+                        _LOGGER.info("Page %d: Highlighted:,\n"
+                                      "  --> \"%s\" <--  \n",
+                                      page_num, hightlighted)
                 except TextNotFoundException:
-                    # use fall back to try again
-                    _LOGGER.debug("Page %d: Using fall-back mechanism."
-                                  "Might contains mistaken hls.", page_num)
-                    points = fitz_pdf.fallback_get_quadpoints(i, text)
-                except MultipleInstancesException:
-                    _LOGGER.error("Page %d: The following text found multiple instances,\n\n"
+                    _LOGGER.error("Page %d: The following text was not found,\n\n"
                                   "  --> \"%s\" <--  \n\n"
-                                  "(Token too short?), please re-highligh it manually.",
+                                  "please re-highligh it manually.",
                                   page_num, text)
-                    continue
-                highlight = create_highlight(points,
-                                             author=AUTHOR,
-                                             contents=_annot.comment,
-                                             color=(1, 1, 0.4))
-                # check to see if this annotation exists already
-                if fitz_pdf.annot_exists(page_num=i, annot=highlight):
-                    _LOGGER.debug("Page %d: This annot already exists, skipping...", page_num)
-                else:
-                    add_annot(page, annot=highlight)
-                    count += 1
             print(">> Page {} successfully converted: {}".format(page_num, count))
 
     PdfWriter(output, trailer=trailer).write()
@@ -133,7 +145,9 @@ def handle_args():
         _LOGGER.setLevel(logging.ERROR)
     # logger to stdout
     channel = logging.StreamHandler(sys.stdout)
-    channel.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+    LOGFORMAT = '%(log_color)s%(levelname)s: %(message)s%(reset)s'
+    formatter = ColoredFormatter(LOGFORMAT)
+    channel.setFormatter(formatter)
     _LOGGER.addHandler(channel)
     return args
 
@@ -141,7 +155,7 @@ def backup(inpfn):
     """Create a bak file for the given input file."""
     backup_file = '{}.bak'.format(inpfn)
     if os.path.isfile(backup_file):
-        _LOGGER.info('Found backup pdf. Using the bak as input instead.')
+        _LOGGER.debug('Found backup pdf. Using the bak as input instead.')
         shutil.copyfile(backup_file, inpfn)
     else:
         shutil.copyfile(inpfn, backup_file)

@@ -51,7 +51,9 @@ class PDFTextSearch:
                 if i >= len(rects):
                     break  # DONE
                 textblock_rect = fitz.Rect(textblock[0], textblock[1], textblock[2], textblock[3])
-                if textblock_rect.contains(rects[i]):
+                # print(dir(textblock_rect))
+                # print(type(textblock_rect))
+                if textblock_rect.includeRect(rects[i]):
                     while i < len(rects):
                         if rects[i].width < ignore_short_width:
                             # Do not include this short line in highlighting
@@ -63,7 +65,7 @@ class PDFTextSearch:
                                 "Possible multiple search results. The results are not consecutive")
                         # 'FOUNDDDDD!!!!!!
                         i += 1
-                        if i >= len(rects) or not textblock_rect.contains(rects[i]):
+                        if i >= len(rects) or not textblock_rect.includeRect(rects[i]):
                             break
                 else:
                     if consecutive_results == 'started':
@@ -115,7 +117,7 @@ class PDFTextSearch:
             line = line.rstrip()
             if i == 0:
                 # first few words
-                if self.unicode_idx(line) != -1 and self.unicode_idx(line) <= 3:
+                if self.unicode_idx(line)[0] != -1 and self.unicode_idx(line)[0] <= 3:
                     raise FallbackFailedException("Escaped character too close to beginning tokens")
                 words, line = get_token(line)
                 add(words)
